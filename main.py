@@ -1,7 +1,9 @@
 from transliterate import translit, detect_language
 from telegram.ext import Updater, MessageHandler, Filters
+from telegram.error import (TelegramError, Unauthorized, BadRequest,
+                            TimedOut, ChatMigrated, NetworkError)
+import logging
 import requests
-
 from ignore.keys import token, key_translator, api_map
 # файл, где должны находиться:
 # token - токен для бота телеграм
@@ -13,9 +15,33 @@ REQUEST_KWARGS = {'proxy_url': 'socks5://45.32.91.85:12345'}
 api_key_translator = key_translator
 value_com = None
 
+logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def start(bot, update):
-    update.message.reply_text('Привет, {}!'.format(update.message.from_user.first_name))
+    # update.message.reply_text('Привет, {}!'.format(update.message.from_user.first_name))
+    text = 'Привет, {}!'.format(update.message.from_user.first_name)
+    bot.send_message(chat_id=update.message.chat_id, text=text)
+
+def error_callback(bot, update, error):
+    try:
+        raise error
+    except Unauthorized:
+        text = 'remove update.message.chat_id from conversation list'
+    except BadRequest:
+        text = 'handle malformed requests - read more below!'
+    except TimedOut:
+        text = 'handle slow connection problems'
+    except NetworkError:
+        text = 'handle other connection problems'
+    except ChatMigrated as e:
+        text = 'the chat_id of a group has changed, use e.new_chat_id instead'
+    except TelegramError:
+        text = 'handle all other telegram related errors'
+    finally:
+        bot.send_message(chat_id=update.message.chat_id, text=text)
 
 
 def help(bot, update):
@@ -68,14 +94,12 @@ def weather(bot, update, message):   # погода
                     press=r.json()['main']['pressure'],
                     hum=r.json()['main']['humidity']
                     )
-        # print(message)
         update.message.reply_text(message)
     else:
         update.message.reply_text('ERROR: возможно не найден город')
 
 
 def process_command(bot, update):
-    # print(2)
     global value_com
     message = update.message.text
     if message == '/start':
@@ -108,17 +132,23 @@ def process(bot, update):
     else:
         update.message.reply_text('Активируйте команду      /help')
 
-# print(1)
+
 def main():
-    updater = Updater(token, request_kwargs=REQUEST_KWARGS)
-    # updater = Updater(token)
+
+    # updater = Updater(token, request_kwargs=REQUEST_KWARGS)
+    updater = Updater(token)
     bot = updater.dispatcher
+    bot.add_error_handler(error_callback)
     bot.add_handler(MessageHandler(Filters.command, process_command))
     bot.add_handler(MessageHandler(Filters.text, process))
     updater.start_polling()
     updater.idle()
 
 
+
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        exit()
 
