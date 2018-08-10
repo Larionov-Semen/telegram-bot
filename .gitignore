@@ -1,1 +1,3 @@
-.war
+/__init__.py
+/key.py
+/venv
