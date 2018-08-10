@@ -2,12 +2,13 @@ from transliterate import translit, detect_language
 from telegram.ext import Updater, MessageHandler, Filters
 import requests
 
-from keys import token, key_translator, api_map, REQUEST_KWARGS
-
+from ignore.keys import token, key_translator, api_map
 # файл, где должны находиться:
 # token - токен для бота телеграм
 # key_translator - ключ для переводчика с translate.yandex.ru
 # api_map - ключ для определения погоды с api.openweathermap.org
+
+REQUEST_KWARGS = {'proxy_url': 'socks5://45.32.91.85:12345'}
 
 api_key_translator = key_translator
 value_com = None
@@ -51,7 +52,6 @@ def translator(message):  # функция переводчика
 
 
 def weather(bot, update, message):   # погода
-    # print(message)
     r = requests.post('http://api.openweathermap.org/data/2.5/weather?q=%s&appid=%s' % (message, api_map))
     if r.json()['cod'] == 200:
         message = '''{city}
@@ -108,9 +108,10 @@ def process(bot, update):
     else:
         update.message.reply_text('Активируйте команду      /help')
 
-
+# print(1)
 def main():
     updater = Updater(token, request_kwargs=REQUEST_KWARGS)
+    # updater = Updater(token)
     bot = updater.dispatcher
     bot.add_handler(MessageHandler(Filters.command, process_command))
     bot.add_handler(MessageHandler(Filters.text, process))
